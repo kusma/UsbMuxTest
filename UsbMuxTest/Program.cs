@@ -25,7 +25,8 @@ namespace UsbMuxTest
 		*/
 	}
 
-	enum Message {
+	enum Message
+	{
 		Result  = 1,
 		Connect = 2,
 		Listen = 3,
@@ -34,6 +35,16 @@ namespace UsbMuxTest
 		PList = 8,
 	};
 
+	enum Result
+	{
+		Ok = 0,
+		BadCommand = 1,
+		BadDevice = 2,
+		ConnectionRefused = 3,
+		// ??
+		BadVersion = 6,
+	}
+
 	class UsbMux
 	{
 		Socket _sock;
@@ -41,16 +52,15 @@ namespace UsbMuxTest
 
 		public UsbMux()
 		{
-			EndPoint endPoint = new UnixEndPoint ("/var/run/usbmuxd");
-			_sock = new Socket (AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-			_sock.Connect (endPoint);
+			EndPoint endPoint = new UnixEndPoint("/var/run/usbmuxd");
+			_sock = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+			_sock.Connect(endPoint);
 			_stream = new NetworkStream(_sock);
 		}
 
 		public Device[] ListDevices()
 		{
 			var plist2 = CreatePListMessage("ListDevices");
-			Console.WriteLine(string.Format("sending: {0}", plist2.ToString()));
 			WritePListPacket(2, plist2);
 
 			int version;
@@ -58,12 +68,7 @@ namespace UsbMuxTest
 			int tag;
 			var payload = ReadPacket(out version, out msg, out tag);
 
-			NSData plistData = NSData.FromArray(payload);
-			NSPropertyListFormat format = NSPropertyListFormat.Xml;
-			NSError error;
-			NSDictionary plist = (NSDictionary)NSPropertyListSerialization.PropertyListWithData(plistData, ref format, out error);
-			if (plist == null)
-				throw new Exception("failed to parse plist");
+			NSDictionary plist = PayloadToNSDictionary(payload);
 
 			var deviceList = (NSArray)plist["DeviceList"];
 			var ret = new List<Device>();
@@ -72,9 +77,47 @@ namespace UsbMuxTest
 				var device = new NSDictionary(deviceList.ValueAt(i));
 				var deviceId = (NSNumber)device["DeviceID"];
 				ret.Add(new Device(deviceId.UInt32Value));
-				Console.WriteLine(string.Format("device: {0}", device));
 			}
 			return ret.ToArray();
+		}
+
+		public Stream Connect(Device device, short port)
+		{
+			if (false)
+			{
+				/*
+				byte[] buffer = new byte[4 + 2 * 2];
+				using (MemoryStream ms = new MemoryStream ()) {
+					var binaryWriter = new BinaryWriter (ms);
+					binaryWriter.Write (device.DeviceID);
+					binaryWriter.Write ((UInt16)port);
+					binaryWriter.Write ((UInt16)0);
+					binaryWriter.Flush ();
+
+					WritePacket (0, Message.Connect, 2, buffer);
+				}
+				*/
+			}
+			else
+			{
+				var k = new Object[] { "MessageType", "DeviceID", "PortNumber" };
+				var v = new Object[] { "Connect", device.DeviceID, IPAddress.HostToNetworkOrder(port) };
+				WritePListPacket(2, NSDictionary.FromObjectsAndKeys(v,k));
+			}
+
+			int version;
+			Message msg;
+			int tag;
+			var payload = ReadPacket(out version, out msg, out tag);
+			NSDictionary plist2 = PayloadToNSDictionary(payload);
+			var number = (NSNumber)plist2["Number"];
+			var result = (Result)number.Int32Value;
+			if (result != Result.Ok)
+				throw new Exception("failed to connect!");
+
+			var ret = _stream;
+			_stream = null;
+			return ret;
 		}
 
 		void WritePacket(int version, Message message, int tag, byte[] payload = null)
@@ -119,6 +162,17 @@ namespace UsbMuxTest
 			var v = new Object[] { messageType };
 			return NSDictionary.FromObjectsAndKeys(v,k);
 		}
+
+		static NSDictionary PayloadToNSDictionary(byte[] payload)
+		{
+			NSData plistData = NSData.FromArray(payload);
+			NSPropertyListFormat format = NSPropertyListFormat.Xml;
+			NSError error;
+			NSDictionary ret = (NSDictionary)NSPropertyListSerialization.PropertyListWithData(plistData, ref format, out error);
+			if (ret == null)
+				throw new Exception("failed to parse plist");
+			return ret;
+		}
 	}
 
 	class MainClass
@@ -131,12 +185,18 @@ namespace UsbMuxTest
 
 				var usbMux = new UsbMux();
 				var devices = usbMux.ListDevices();
+
 				foreach (var d in devices)
 				{
 					Console.WriteLine(string.Format("device: {0}", d.DeviceID));
+					var stream = usbMux.Connect(d, 1337);
+					var streamReader = new StreamReader(stream);
+					var hello = streamReader.ReadLine();
+					Console.WriteLine(string.Format("phone says: {0}", hello));
+					var streamWriter = new StreamWriter(stream);
+					streamWriter.WriteLine("HELLO TO YOU TOO, PHONE!\n");
+					streamWriter.Flush();
 				}
-
-//			WritePacket(stream, 0, Message.Listen, 2);
 			}
 			catch (Exception e)
 			{
