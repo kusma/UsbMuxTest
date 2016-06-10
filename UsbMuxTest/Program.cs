@@ -49,6 +49,7 @@ namespace UsbMuxTest
 	{
 		Socket _sock;
 		NetworkStream _stream;
+		int _tag;
 
 		public UsbMux()
 		{
@@ -61,7 +62,7 @@ namespace UsbMuxTest
 		public Device[] ListDevices()
 		{
 			var plist2 = CreatePListMessage("ListDevices");
-			WritePListPacket(2, plist2);
+			WritePListPacket(plist2);
 
 			int version;
 			Message msg;
@@ -83,27 +84,9 @@ namespace UsbMuxTest
 
 		public Stream Connect(Device device, short port)
 		{
-			if (false)
-			{
-				/*
-				byte[] buffer = new byte[4 + 2 * 2];
-				using (MemoryStream ms = new MemoryStream ()) {
-					var binaryWriter = new BinaryWriter (ms);
-					binaryWriter.Write (device.DeviceID);
-					binaryWriter.Write ((UInt16)port);
-					binaryWriter.Write ((UInt16)0);
-					binaryWriter.Flush ();
-
-					WritePacket (0, Message.Connect, 2, buffer);
-				}
-				*/
-			}
-			else
-			{
-				var k = new Object[] { "MessageType", "DeviceID", "PortNumber" };
-				var v = new Object[] { "Connect", device.DeviceID, IPAddress.HostToNetworkOrder(port) };
-				WritePListPacket(2, NSDictionary.FromObjectsAndKeys(v,k));
-			}
+			var k = new Object[] { "MessageType", "DeviceID", "PortNumber" };
+			var v = new Object[] { "Connect", device.DeviceID, IPAddress.HostToNetworkOrder(port) };
+			WritePListPacket(NSDictionary.FromObjectsAndKeys(v, k));
 
 			int version;
 			Message msg;
@@ -120,7 +103,7 @@ namespace UsbMuxTest
 			return ret;
 		}
 
-		void WritePacket(int version, Message message, int tag, byte[] payload = null)
+		void WritePacket(int version, Message message, byte[] payload = null)
 		{
 			var binaryWriter = new BinaryWriter(_stream);
 			int length = 16;
@@ -130,20 +113,20 @@ namespace UsbMuxTest
 			binaryWriter.Write((Int32)length);
 			binaryWriter.Write((Int32)version);
 			binaryWriter.Write((Int32)message);
-			binaryWriter.Write((Int32)tag);
+			binaryWriter.Write((Int32)(++_tag));
 
 			if (payload != null)
 				binaryWriter.Write(payload);
 		}
 
-		void WritePListPacket(int tag, NSDictionary plist)
+		void WritePListPacket(NSDictionary plist)
 		{
 			NSError error;
 			var nsData = (NSData)NSPropertyListSerialization.DataWithPropertyList(plist, NSPropertyListFormat.Xml, out error);
 			if (nsData == null)
 				throw new Exception("failed to serialize plist");
 
-			WritePacket(1, Message.PList, tag, System.Text.Encoding.UTF8.GetBytes(nsData.ToString()));
+			WritePacket(1, Message.PList, System.Text.Encoding.UTF8.GetBytes(nsData.ToString()));
 		}
 
 		byte[] ReadPacket(out int version, out Message message, out int tag)
