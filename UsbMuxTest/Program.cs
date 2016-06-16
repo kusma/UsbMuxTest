@@ -3,31 +3,83 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.IO;
+using System.Linq;
+using System.Text;
 using Mono.Unix;
 using MonoMac.Foundation;
 
 namespace UsbMuxTest
 {
-	struct Device
+	class FailedToConnectToDevice : Exception
 	{
-		public Device(UInt32 deviceId)
+		public readonly Device Device;
+
+		public FailedToConnectToDevice(string message, Device device)
+			: base("Failed to connect to " + device + " with " + message)
+		{
+			Device = device;
+		}
+	}
+
+	class FailedToConnectToUSBMux : Exception
+	{
+		public FailedToConnectToUSBMux()
+			: base("Failed to connect to usbmux.")
+		{
+		}
+	}
+
+	class FailedToParsePlist : Exception
+	{
+		public FailedToParsePlist()
+			: base("Failed to parse plist.")
+		{
+		}
+	}
+
+	class FailedToSendMessage : Exception
+	{
+		public FailedToSendMessage() : base("Failed to send message to usbmux.")
+		{
+		}
+	}
+
+	class FailedToParseResponse : Exception
+	{
+		public FailedToParseResponse()
+			: base("Failed to parse response from usbmux.")
+		{
+		}
+	}
+
+	class Device
+	{
+		public Device(uint deviceId, ushort productId, byte[] serialNumber, uint location)
 		{
 			DeviceID = deviceId;
+			ProductID = productId;
+			SerialNumber = serialNumber;
+			Location = location;
 		}
 
-		public readonly UInt32 DeviceID;
+		public readonly uint DeviceID;
+		public readonly ushort ProductID;
+		public readonly byte[] SerialNumber;
+		public readonly uint Location;
 
-		/*
-		TODO?
-		public UInt16 ProductID;
-		public byte[] SerialNumber;
-		public UInt32 Location;
-		*/
+		public override string ToString()
+		{
+			return "{ DeviceID: " + DeviceID
+				+ ", ProductID: " + ProductID
+				+ ", SerialNumber: " + BitConverter.ToString(SerialNumber)
+				+ ", Location: " + Location
+				+ " }";
+		}
 	}
 
 	enum Message
 	{
-		Result  = 1,
+		Result = 1,
 		Connect = 2,
 		Listen = 3,
 		DeviceAdd = 4,
@@ -45,116 +97,209 @@ namespace UsbMuxTest
 		BadVersion = 6,
 	}
 
-	class UsbMux
+	class MessageData
 	{
-		Socket _sock;
-		NetworkStream _stream;
-		int _tag;
+		public readonly int Version;
+		public readonly Message Message;
+		public readonly int Tag;
+		public readonly byte[] Payload;
 
-		public UsbMux()
+		MessageData(int version, NSDictionary payload)
+			: this(version, Message.PList, 0, Serialize(payload))
 		{
-			EndPoint endPoint = new UnixEndPoint("/var/run/usbmuxd");
-			_sock = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-			_sock.Connect(endPoint);
-			_stream = new NetworkStream(_sock);
 		}
 
-		public Device[] ListDevices()
+		MessageData(int version, Message message, int tag, byte[] payload)
 		{
-			var plist2 = CreatePListMessage("ListDevices");
-			WritePListPacket(plist2);
-
-			int version;
-			Message msg;
-			int tag;
-			var payload = ReadPacket(out version, out msg, out tag);
-
-			NSDictionary plist = PayloadToNSDictionary(payload);
-
-			var deviceList = (NSArray)plist["DeviceList"];
-			var ret = new List<Device>();
-			for (uint i = 0; i < deviceList.Count; ++i)
-			{
-				var device = new NSDictionary(deviceList.ValueAt(i));
-				var deviceId = (NSNumber)device["DeviceID"];
-				ret.Add(new Device(deviceId.UInt32Value));
-			}
-			return ret.ToArray();
+			Version = version;
+			Message = message;
+			Tag = tag;
+			Payload = payload;
 		}
 
-		public Stream Connect(Device device, short port)
-		{
-			var k = new Object[] { "MessageType", "DeviceID", "PortNumber" };
-			var v = new Object[] { "Connect", device.DeviceID, IPAddress.HostToNetworkOrder(port) };
-			WritePListPacket(NSDictionary.FromObjectsAndKeys(v, k));
-
-			int version;
-			Message msg;
-			int tag;
-			var payload = ReadPacket(out version, out msg, out tag);
-			NSDictionary plist2 = PayloadToNSDictionary(payload);
-			var number = (NSNumber)plist2["Number"];
-			var result = (Result)number.Int32Value;
-			if (result != Result.Ok)
-				throw new Exception("failed to connect!");
-
-			var ret = _stream;
-			_stream = null;
-			return ret;
-		}
-
-		void WritePacket(int version, Message message, byte[] payload = null)
-		{
-			var binaryWriter = new BinaryWriter(_stream);
-			int length = 16;
-			if (payload != null)
-				length += payload.Length;
-
-			binaryWriter.Write((Int32)length);
-			binaryWriter.Write((Int32)version);
-			binaryWriter.Write((Int32)message);
-			binaryWriter.Write((Int32)(++_tag));
-
-			if (payload != null)
-				binaryWriter.Write(payload);
-		}
-
-		void WritePListPacket(NSDictionary plist)
+		static byte[] Serialize(NSDictionary plist)
 		{
 			NSError error;
-			var nsData = (NSData)NSPropertyListSerialization.DataWithPropertyList(plist, NSPropertyListFormat.Xml, out error);
+			var nsData = NSPropertyListSerialization.DataWithPropertyList(plist, NSPropertyListFormat.Xml, out error);
 			if (nsData == null)
-				throw new Exception("failed to serialize plist");
+				throw new Exception("Failed to serialize plist");
 
-			WritePacket(1, Message.PList, System.Text.Encoding.UTF8.GetBytes(nsData.ToString()));
+			return Encoding.UTF8.GetBytes(nsData.ToString());
 		}
 
-		byte[] ReadPacket(out int version, out Message message, out int tag)
+		public static void SerializePlist(BinaryWriter writer, NSDictionary payload)
 		{
-			var binaryReader = new BinaryReader(_stream);
-			int length = binaryReader.ReadInt32();
-			version = binaryReader.ReadInt32();
-			message = (Message)binaryReader.ReadInt32();
-			tag = binaryReader.ReadInt32();
-			return binaryReader.ReadBytes(length - 16);
+			new MessageData(1, payload).Serialize(writer);
 		}
 
-		static NSDictionary CreatePListMessage(string messageType)
+		public void Serialize(BinaryWriter writer)
 		{
-			var k = new Object[] { "MessageType" };
-			var v = new Object[] { messageType };
-			return NSDictionary.FromObjectsAndKeys(v,k);
+			writer.Write(TotalSize);
+			writer.Write(Version);
+			writer.Write((int)Message);
+			writer.Write(Tag);
+			writer.Write(Payload);
 		}
 
-		static NSDictionary PayloadToNSDictionary(byte[] payload)
+		public static MessageData Deserialize(BinaryReader reader)
 		{
-			NSData plistData = NSData.FromArray(payload);
-			NSPropertyListFormat format = NSPropertyListFormat.Xml;
+			var payloadSize = reader.ReadInt32() - HeaderSize;
+			return new MessageData(
+				reader.ReadInt32(),
+				(Message)reader.ReadInt32(),
+				reader.ReadInt32(),
+				reader.ReadBytes(payloadSize));
+		}
+
+		static int HeaderSize
+		{
+			get { return sizeof(int) + sizeof(int) + sizeof(int) + sizeof(Message); }
+		}
+
+		int TotalSize
+		{
+			get { return HeaderSize + Payload.Length; }
+		}
+	}
+
+	static class BinaryStreamsExtensions
+	{
+		public static MessageData DeserializeMessage(this BinaryReader reader)
+		{
+			return MessageData.Deserialize(reader);
+		}
+
+		/// <exception cref="FailedToParseResponse"></exception>
+		public static NSDictionary DeserializePlist(this BinaryReader reader)
+		{
+			try
+			{
+				return PlistSerializer.PayloadToNSDictionary(MessageData.Deserialize(reader).Payload);
+			}
+			catch (Exception)
+			{
+				throw new FailedToParseResponse();
+			}
+		}
+
+		/// <exception cref="FailedToSendMessage"></exception>
+		public static void SerializePlist(this BinaryWriter writer, NSDictionary payload)
+		{
+			try
+			{
+				MessageData.SerializePlist(writer, payload);
+			}
+			catch (Exception)
+			{
+				throw new FailedToSendMessage();
+			}
+		}
+	}
+
+	class PlistSerializer
+	{
+		public static NSDictionary CreatePlistMessage(string messageType, object[] otherKeys = null, object[] otherValues = null)
+		{
+			var k = new object[] { "MessageType" }.Union(otherKeys ?? new object[0]);
+			var v = new object[] { messageType }.Union(otherValues ?? new object[0]);
+			return NSDictionary.FromObjectsAndKeys(v.ToArray(), k.ToArray());
+		}
+
+		/// <exception cref="FailedToParsePlist"></exception>
+		public static NSDictionary PayloadToNSDictionary(byte[] payload)
+		{
+			var plistData = NSData.FromArray(payload);
+			var format = NSPropertyListFormat.Xml;
+
 			NSError error;
-			NSDictionary ret = (NSDictionary)NSPropertyListSerialization.PropertyListWithData(plistData, ref format, out error);
+			var ret = (NSDictionary)NSPropertyListSerialization.PropertyListWithData(plistData, ref format, out error);
 			if (ret == null)
-				throw new Exception("failed to parse plist");
+				throw new FailedToParsePlist();
+
 			return ret;
+		}
+	}
+
+	static class UsbMux
+	{
+		/// <exception cref="FailedToParseResponse"></exception>
+		/// <exception cref="FailedToConnectToUSBMux"></exception>
+		/// <exception cref="FailedToSendMessage"></exception>
+		public static Device[] ListDevices()
+		{
+			using (var stream = ConnectToUsbMux())
+			{
+				var reader = new BinaryReader(stream);
+				var writer = new BinaryWriter(stream);
+
+				writer.SerializePlist(PlistSerializer.CreatePlistMessage("ListDevices"));
+
+				var listDevicesResult = reader.DeserializePlist();
+				var deviceList = (NSArray)listDevicesResult["DeviceList"];
+				var ret = new List<Device>();
+
+				for (uint i = 0; i < deviceList.Count; ++i)
+				{
+					var device = new NSDictionary(deviceList.ValueAt(i));
+					var deviceId = (NSNumber)device["DeviceID"];
+					var properties = (NSMutableDictionary)device["Properties"];
+					var productId = (NSNumber)properties["ProductID"];
+					var serialNumber = (NSString)properties["SerialNumber"];
+					var locationId = (NSNumber)properties["LocationID"];
+					ret.Add(new Device(deviceId.UInt32Value, (ushort)productId, StringToByteArray(serialNumber.ToString()), (uint)locationId));
+				}
+
+				return ret.ToArray();
+			}
+		}
+
+		static byte[] StringToByteArray(string hex)
+		{
+			return Enumerable.Range(0, hex.Length)
+				.Where(x => x % 2 == 0)
+				.Select(x => Convert.ToByte(hex.Substring(x, 2), 16))
+				.ToArray();
+		}
+
+		/// <exception cref="FailedToConnectToDevice"></exception>
+		/// <exception cref="FailedToParseResponse"></exception>
+		/// <exception cref="FailedToConnectToUSBMux"></exception>
+		/// <exception cref="FailedToSendMessage"></exception>
+		public static Stream Connect(Device device, short port)
+		{
+			var stream = ConnectToUsbMux();
+			var reader = new BinaryReader(stream, Encoding.UTF8, true);
+			var writer = new BinaryWriter(stream, Encoding.UTF8, true);
+
+			writer.SerializePlist(
+				PlistSerializer.CreatePlistMessage("Connect",
+					new object[] { "DeviceID", "PortNumber" },
+					new object[] { device.DeviceID, IPAddress.HostToNetworkOrder(port) }));
+
+			var parsedPayload = reader.DeserializePlist();
+			var resultCode = ((NSNumber)parsedPayload["Number"]).Int32Value;
+
+			var response = (Result)resultCode;
+			if (response != Result.Ok)
+				throw new FailedToConnectToDevice("Expected response to be 'Ok', but was '" + response + "'", device);
+
+			return stream;
+		}
+
+		/// <exception cref="FailedToConnectToUSBMux"></exception>
+		static Stream ConnectToUsbMux()
+		{
+			try
+			{
+				EndPoint endPoint = new UnixEndPoint("/var/run/usbmuxd");
+				var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+				socket.Connect(endPoint);
+				return new NetworkStream(socket);
+			}
+			catch (Exception)
+			{
+				throw new FailedToConnectToUSBMux();
+			}
 		}
 	}
 
@@ -163,20 +308,18 @@ namespace UsbMuxTest
 
 		public static void Main(string[] args)
 		{
-			try {
+			try
+			{
 				MonoMac.AppKit.NSApplication.Init();
 
-				var usbMux = new UsbMux();
-				var devices = usbMux.ListDevices();
-
+				var devices = UsbMux.ListDevices();
 				foreach (var d in devices)
 				{
 					Console.WriteLine(string.Format("device: {0}", d.DeviceID));
-					var deviceMux = new UsbMux();
-					var stream = deviceMux.Connect(d, 1337);
+					var stream = UsbMux.Connect(d, 1337);
 					var streamReader = new StreamReader(stream);
 					var hello = streamReader.ReadLine();
-					Console.WriteLine(string.Format("phone says: {0}", hello));
+					Console.WriteLine("phone says: {0}", hello);
 					var streamWriter = new StreamWriter(stream);
 					streamWriter.WriteLine("HELLO TO YOU TOO, PHONE!\n");
 					streamWriter.Flush();
@@ -184,7 +327,7 @@ namespace UsbMuxTest
 			}
 			catch (Exception e)
 			{
-				Console.WriteLine(string.Format("fatal exception: {0}", e.ToString()));
+				Console.WriteLine("fatal exception: {0}", e.ToString());
 			}
 		}
 	}
