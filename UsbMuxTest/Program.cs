@@ -52,7 +52,7 @@ namespace UsbMuxTest
 		}
 	}
 
-	class Device
+	public class Device
 	{
 		public Device(uint deviceId, ushort productId, byte[] serialNumber, uint location)
 		{
