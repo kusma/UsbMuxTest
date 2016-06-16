@@ -258,7 +258,7 @@ namespace UsbMuxTest
 			}
 		}
 
-		static byte[] StringToByteArray(string hex)
+		internal static byte[] StringToByteArray(string hex)
 		{
 			return Enumerable.Range(0, hex.Length)
 				.Where(x => x % 2 == 0)
