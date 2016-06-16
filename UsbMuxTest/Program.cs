@@ -243,6 +243,11 @@ namespace UsbMuxTest
 					var device = new NSDictionary(deviceList.ValueAt(i));
 					var deviceId = (NSNumber)device["DeviceID"];
 					var properties = (NSMutableDictionary)device["Properties"];
+
+					var connectionType = (NSString)properties["ConnectionType"];
+					if (connectionType != "USB")
+						continue;
+
 					var productId = (NSNumber)properties["ProductID"];
 					var serialNumber = (NSString)properties["SerialNumber"];
 					var locationId = (NSNumber)properties["LocationID"];
