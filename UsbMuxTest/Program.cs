@@ -21,6 +21,14 @@ namespace UsbMuxTest
 		}
 	}
 
+	class FailedToListen : Exception
+	{
+		public FailedToListen(string message)
+			: base("Failed to listen to usbmux: " + message)
+		{
+		}
+	}
+
 	class FailedToConnectToUSBMux : Exception
 	{
 		public FailedToConnectToUSBMux()
@@ -291,6 +299,24 @@ namespace UsbMuxTest
 			return stream;
 		}
 
+		public static NetworkStream Listen()
+		{
+			var stream = ConnectToUsbMux();
+			var reader = new BinaryReader(stream, Encoding.UTF8, true);
+			var writer = new BinaryWriter(stream, Encoding.UTF8, true);
+
+			writer.SerializePlist(PlistSerializer.CreatePlistMessage("Listen"));
+
+			var parsedPayload = reader.DeserializePlist();
+			var resultCode = ((NSNumber)parsedPayload["Number"]).Int32Value;
+
+			var response = (Result)resultCode;
+			if (response != Result.Ok)
+				throw new FailedToListen("Expected response to be 'Ok', but was '" + response + "'");
+
+			return stream;
+		}
+
 		/// <exception cref="FailedToConnectToUSBMux"></exception>
 		static NetworkStream ConnectToUsbMux()
 		{
@@ -308,6 +334,69 @@ namespace UsbMuxTest
 		}
 	}
 
+	public class DeviceListener
+	{
+		readonly NetworkStream _stream;
+		readonly List<Device> _devices = new List<Device>();
+
+		public DeviceListener()
+		{
+			_stream = UsbMux.Listen();
+		}
+
+		public class DeviceEventArgs : EventArgs
+		{
+			public Device Device { get; internal set; }
+		}
+
+		public delegate void DeviceEventHandler(object sender, DeviceEventArgs e);
+		public event DeviceEventHandler DeviceAttached;
+		public event DeviceEventHandler DeviceDetached;
+
+		public void Poll()
+		{
+			while (_stream.DataAvailable)
+			{
+				var reader = new BinaryReader(_stream);
+				var message = reader.DeserializePlist();
+
+				var deviceId = (NSNumber)message["DeviceID"];
+				var messageType = (NSString)message["MessageType"];
+
+				if (messageType == "Attached")
+				{
+					var properties = (NSMutableDictionary)message["Properties"];
+
+					var productId = (NSNumber)properties["ProductID"];
+					var serialNumber = (NSString)properties["SerialNumber"];
+					var locationId = (NSNumber)properties["LocationID"];
+
+					var device = new Device(deviceId.UInt32Value, (ushort)productId, UsbMux.StringToByteArray(serialNumber.ToString()), (uint)locationId);
+
+					if (_devices.Find(x => x.DeviceID == device.DeviceID) != null)
+						throw new Exception("Adding an element twice!");
+
+					_devices.Add(device);
+
+					if (DeviceAttached != null)
+						DeviceAttached(this, new DeviceEventArgs() { Device = device });
+				}
+				else if (messageType == "Detached")
+				{
+					var device = _devices.Find(x => x.DeviceID == deviceId.UInt32Value);
+					if (device == null)
+						throw new Exception("Removing non-existent device!");
+
+					_devices.Remove(device);
+
+					if (DeviceDetached != null)
+						DeviceDetached(this, new DeviceEventArgs() { Device = device });
+				}
+			}
+		}
+		public Device[] AttachedDevices { get { return _devices.ToArray(); } }
+	}
+
 	class MainClass
 	{
 
@@ -318,6 +407,14 @@ namespace UsbMuxTest
 				MonoMac.AppKit.NSApplication.Init();
 
 				var devices = UsbMux.ListDevices();
+
+				var deviceListener = new DeviceListener();
+				deviceListener.DeviceAttached += (object sender, DeviceListener.DeviceEventArgs a) => Console.WriteLine("attached: " + a.Device.ToString());
+				deviceListener.DeviceDetached += (object sender, DeviceListener.DeviceEventArgs a) => Console.WriteLine("detached: " + a.Device.ToString());
+
+				while (true)
+					deviceListener.Poll();
+
 				foreach (var d in devices)
 				{
 					Console.WriteLine(string.Format("device: {0}", d.DeviceID));
