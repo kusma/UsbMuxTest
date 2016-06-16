@@ -292,7 +292,7 @@ namespace UsbMuxTest
 		}
 
 		/// <exception cref="FailedToConnectToUSBMux"></exception>
-		static Stream ConnectToUsbMux()
+		static NetworkStream ConnectToUsbMux()
 		{
 			try
 			{
