@@ -408,13 +408,6 @@ namespace UsbMuxTest
 
 				var devices = UsbMux.ListDevices();
 
-				var deviceListener = new DeviceListener();
-				deviceListener.DeviceAttached += (object sender, DeviceListener.DeviceEventArgs a) => Console.WriteLine("attached: " + a.Device.ToString());
-				deviceListener.DeviceDetached += (object sender, DeviceListener.DeviceEventArgs a) => Console.WriteLine("detached: " + a.Device.ToString());
-
-				while (true)
-					deviceListener.Poll();
-
 				foreach (var d in devices)
 				{
 					Console.WriteLine(string.Format("device: {0}", d.DeviceID));
@@ -426,6 +419,13 @@ namespace UsbMuxTest
 					streamWriter.WriteLine("HELLO TO YOU TOO, PHONE!\n");
 					streamWriter.Flush();
 				}
+
+				var deviceListener = new DeviceListener();
+				deviceListener.DeviceAttached += (object sender, DeviceListener.DeviceEventArgs a) => Console.WriteLine("attached: " + a.Device.ToString());
+				deviceListener.DeviceDetached += (object sender, DeviceListener.DeviceEventArgs a) => Console.WriteLine("detached: " + a.Device.ToString());
+
+				while (true)
+					deviceListener.Poll();
 			}
 			catch (Exception e)
 			{
