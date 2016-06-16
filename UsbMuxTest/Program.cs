@@ -220,7 +220,7 @@ namespace UsbMuxTest
 		}
 	}
 
-	static class UsbMux
+	public static class UsbMux
 	{
 		/// <exception cref="FailedToParseResponse"></exception>
 		/// <exception cref="FailedToConnectToUSBMux"></exception>
