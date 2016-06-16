@@ -410,14 +410,21 @@ namespace UsbMuxTest
 
 				foreach (var d in devices)
 				{
-					Console.WriteLine(string.Format("device: {0}", d.DeviceID));
-					var stream = UsbMux.Connect(d, 1337);
-					var streamReader = new StreamReader(stream);
-					var hello = streamReader.ReadLine();
-					Console.WriteLine("phone says: {0}", hello);
-					var streamWriter = new StreamWriter(stream);
-					streamWriter.WriteLine("HELLO TO YOU TOO, PHONE!\n");
-					streamWriter.Flush();
+					try
+					{
+						Console.WriteLine(string.Format("device: {0}", d.DeviceID));
+						var stream = UsbMux.Connect(d, 1337);
+						var streamReader = new StreamReader(stream);
+						var hello = streamReader.ReadLine();
+						Console.WriteLine("phone says: {0}", hello);
+						var streamWriter = new StreamWriter(stream);
+						streamWriter.WriteLine("HELLO TO YOU TOO, PHONE!\n");
+						streamWriter.Flush();
+					}
+					catch (FailedToConnectToDevice e)
+					{
+						Console.WriteLine("failed to connect to device: {0}", e.ToString());
+					}
 				}
 
 				var deviceListener = new DeviceListener();
