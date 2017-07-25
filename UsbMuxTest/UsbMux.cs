@@ -6,7 +6,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using Mono.Unix;
-using MonoMac.Foundation;
+using Foundation;
 
 namespace Fuse.UsbMux
 {
@@ -248,7 +248,7 @@ namespace Fuse.UsbMux
 
                 for (uint i = 0; i < deviceList.Count; ++i)
                 {
-                    var device = new NSDictionary(deviceList.ValueAt(i));
+                    var device = deviceList.GetItem<NSDictionary>(i);
                     var deviceId = (NSNumber)device["DeviceID"];
                     var properties = (NSMutableDictionary)device["Properties"];
 

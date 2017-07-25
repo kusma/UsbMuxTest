@@ -11,7 +11,7 @@ namespace UsbMuxText
 		{
 			try
 			{
-				MonoMac.AppKit.NSApplication.Init();
+				AppKit.NSApplication.Init();
 
 				var devices = UsbMux.ListDevices();
 				foreach (var d in devices)

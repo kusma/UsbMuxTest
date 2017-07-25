@@ -1,7 +1,7 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UsbMuxTest", "UsbMuxTest\UsbMuxTest.csproj", "{4919B0E1-5789-4DB7-BD10-C8342DAFC8C3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UsbMuxTest", "UsbMuxTest\UsbMuxTest.csproj", "{029BE294-11E0-444B-9A8B-69665EA5D0F1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -9,9 +9,9 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{4919B0E1-5789-4DB7-BD10-C8342DAFC8C3}.Debug|x86.ActiveCfg = Debug|x86
-		{4919B0E1-5789-4DB7-BD10-C8342DAFC8C3}.Debug|x86.Build.0 = Debug|x86
-		{4919B0E1-5789-4DB7-BD10-C8342DAFC8C3}.Release|x86.ActiveCfg = Release|x86
-		{4919B0E1-5789-4DB7-BD10-C8342DAFC8C3}.Release|x86.Build.0 = Release|x86
+		{029BE294-11E0-444B-9A8B-69665EA5D0F1}.Debug|x86.ActiveCfg = Debug|x86
+		{029BE294-11E0-444B-9A8B-69665EA5D0F1}.Debug|x86.Build.0 = Debug|x86
+		{029BE294-11E0-444B-9A8B-69665EA5D0F1}.Release|x86.ActiveCfg = Release|x86
+		{029BE294-11E0-444B-9A8B-69665EA5D0F1}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 EndGlobal
