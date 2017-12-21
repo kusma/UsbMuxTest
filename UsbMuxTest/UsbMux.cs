@@ -60,7 +60,7 @@ namespace Fuse.UsbMux
         }
     }
 
-    public class Device
+    public struct Device
     {
         public Device(uint deviceId, ushort productId, byte[] serialNumber, uint location)
         {
@@ -337,14 +337,14 @@ namespace Fuse.UsbMux
     public class DeviceListener
     {
         readonly NetworkStream _stream;
-        readonly List<Device> _devices = new List<Device>();
+        readonly Dictionary<uint, Device> _devices = new Dictionary<uint, Device>();
 
         public DeviceListener()
         {
             _stream = UsbMux.Listen();
         }
 
-        public Device[] AttachedDevices { get { return _devices.ToArray(); } }
+        public Device[] AttachedDevices { get { return _devices.Values.ToArray(); } }
 
         public class DeviceEventArgs : EventArgs
         {
@@ -367,29 +367,27 @@ namespace Fuse.UsbMux
 
                 if (messageType == "Attached")
                 {
-                    var properties = (NSMutableDictionary)message["Properties"];
+                    if (_devices.ContainsKey(deviceId.UInt32Value))
+                        throw new Exception("Adding an element twice!");
 
+                    var properties = (NSMutableDictionary)message["Properties"];
                     var productId = (NSNumber)properties["ProductID"];
                     var serialNumber = (NSString)properties["SerialNumber"];
                     var locationId = (NSNumber)properties["LocationID"];
 
                     var device = new Device(deviceId.UInt32Value, (ushort)productId, UsbMux.StringToByteArray(serialNumber.ToString()), (uint)locationId);
-
-                    if (_devices.Find(x => x.DeviceID == device.DeviceID) != null)
-                        throw new Exception("Adding an element twice!");
-
-                    _devices.Add(device);
+                    _devices.Add(deviceId.UInt32Value, device);
 
                     if (DeviceAttached != null)
                         DeviceAttached(this, new DeviceEventArgs() { Device = device });
                 }
                 else if (messageType == "Detached")
                 {
-                    var device = _devices.Find(x => x.DeviceID == deviceId.UInt32Value);
-                    if (device == null)
+                    if (!_devices.ContainsKey(deviceId.UInt32Value))
                         throw new Exception("Removing non-existent device!");
 
-                    _devices.Remove(device);
+                    var device = _devices[deviceId.UInt32Value];
+                    _devices.Remove(deviceId.UInt32Value);
 
                     if (DeviceDetached != null)
                         DeviceDetached(this, new DeviceEventArgs() { Device = device });
