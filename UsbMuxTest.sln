@@ -1,7 +1,9 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UsbMuxTest", "UsbMuxTest\UsbMuxTest.csproj", "{029BE294-11E0-444B-9A8B-69665EA5D0F1}"
+# Visual Studio 2013
+VisualStudioVersion = 12.0.0.0
+MinimumVisualStudioVersion = 10.0.0.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UsbMuxTest", "UsbMuxTest\UsbMuxTest.csproj", "{80804FF2-2839-4340-83AB-29ED95000C08}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -9,9 +11,12 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{029BE294-11E0-444B-9A8B-69665EA5D0F1}.Debug|x86.ActiveCfg = Debug|x86
-		{029BE294-11E0-444B-9A8B-69665EA5D0F1}.Debug|x86.Build.0 = Debug|x86
-		{029BE294-11E0-444B-9A8B-69665EA5D0F1}.Release|x86.ActiveCfg = Release|x86
-		{029BE294-11E0-444B-9A8B-69665EA5D0F1}.Release|x86.Build.0 = Release|x86
+		{80804FF2-2839-4340-83AB-29ED95000C08}.Debug|x86.ActiveCfg = Debug|x86
+		{80804FF2-2839-4340-83AB-29ED95000C08}.Debug|x86.Build.0 = Debug|x86
+		{80804FF2-2839-4340-83AB-29ED95000C08}.Release|x86.ActiveCfg = Release|x86
+		{80804FF2-2839-4340-83AB-29ED95000C08}.Release|x86.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal
