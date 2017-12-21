@@ -77,11 +77,8 @@ namespace Fuse.UsbMux
 
         public override string ToString()
         {
-            return "{ DeviceID: " + DeviceID
-                + ", ProductID: " + ProductID
-                + ", SerialNumber: " + BitConverter.ToString(SerialNumber)
-                                                   + ", Location: " + Location
-                                                   + " }";
+            return string.Format("{{ DeviceID: {0}, ProductID: {1}, SerialNumber: {2}, Location: {3} }}",
+                DeviceID, ProductID, BitConverter.ToString(SerialNumber), Location);
         }
     }
 
