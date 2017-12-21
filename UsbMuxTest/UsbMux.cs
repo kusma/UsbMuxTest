@@ -31,8 +31,8 @@ namespace Fuse.UsbMux
 
     public class FailedToConnectToUSBMux : Exception
     {
-        public FailedToConnectToUSBMux()
-            : base("Failed to connect to usbmux.")
+        public FailedToConnectToUSBMux(Exception innerException)
+            : base("Failed to connect to usbmux.", innerException)
         {
         }
     }
@@ -47,15 +47,15 @@ namespace Fuse.UsbMux
 
     public class FailedToSendMessage : Exception
     {
-        public FailedToSendMessage() : base("Failed to send message to usbmux.")
+        public FailedToSendMessage(Exception innerException) : base("Failed to send message to usbmux.", innerException)
         {
         }
     }
 
     public class FailedToParseResponse : Exception
     {
-        public FailedToParseResponse()
-            : base("Failed to parse response from usbmux.")
+        public FailedToParseResponse(Exception innerException)
+            : base("Failed to parse response from usbmux.", innerException)
         {
         }
     }
@@ -184,9 +184,9 @@ namespace Fuse.UsbMux
             {
                 return PlistSerializer.PayloadToNSDictionary(MessageData.Deserialize(reader).Payload);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                throw new FailedToParseResponse();
+                throw new FailedToParseResponse(e);
             }
         }
 
@@ -197,9 +197,9 @@ namespace Fuse.UsbMux
             {
                 MessageData.SerializePlist(writer, payload);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                throw new FailedToSendMessage();
+                throw new FailedToSendMessage(e);
             }
         }
     }
@@ -327,9 +327,9 @@ namespace Fuse.UsbMux
                 socket.Connect(endPoint);
                 return new NetworkStream(socket);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                throw new FailedToConnectToUSBMux();
+                throw new FailedToConnectToUSBMux(e);
             }
         }
     }
