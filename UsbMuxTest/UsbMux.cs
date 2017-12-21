@@ -319,7 +319,7 @@ namespace Fuse.UsbMux
         {
             try
             {
-                EndPoint endPoint = new UnixEndPoint("/var/run/usbmuxd");
+                var endPoint = new UnixEndPoint("/var/run/usbmuxd");
                 var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
                 socket.Connect(endPoint);
                 return new NetworkStream(socket);
