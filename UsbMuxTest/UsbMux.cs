@@ -10,7 +10,7 @@ using Foundation;
 
 namespace Fuse.UsbMux
 {
-    class FailedToConnectToDevice : Exception
+    public class FailedToConnectToDevice : Exception
     {
         public readonly Device Device;
 
@@ -21,7 +21,7 @@ namespace Fuse.UsbMux
         }
     }
 
-    class FailedToListen : Exception
+    public class FailedToListen : Exception
     {
         public FailedToListen(string message)
             : base("Failed to listen to usbmux: " + message)
@@ -29,7 +29,7 @@ namespace Fuse.UsbMux
         }
     }
 
-    class FailedToConnectToUSBMux : Exception
+    public class FailedToConnectToUSBMux : Exception
     {
         public FailedToConnectToUSBMux()
             : base("Failed to connect to usbmux.")
@@ -37,7 +37,7 @@ namespace Fuse.UsbMux
         }
     }
 
-    class FailedToParsePlist : Exception
+    public class FailedToParsePlist : Exception
     {
         public FailedToParsePlist()
             : base("Failed to parse plist.")
@@ -45,14 +45,14 @@ namespace Fuse.UsbMux
         }
     }
 
-    class FailedToSendMessage : Exception
+    public class FailedToSendMessage : Exception
     {
         public FailedToSendMessage() : base("Failed to send message to usbmux.")
         {
         }
     }
 
-    class FailedToParseResponse : Exception
+    public class FailedToParseResponse : Exception
     {
         public FailedToParseResponse()
             : base("Failed to parse response from usbmux.")
