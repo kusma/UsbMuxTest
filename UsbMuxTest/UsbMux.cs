@@ -10,7 +10,7 @@ using Foundation;
 
 namespace Fuse.UsbMux
 {
-    class FailedToConnectToDevice : Exception
+    public class FailedToConnectToDevice : Exception
     {
         public readonly Device Device;
 
@@ -21,7 +21,7 @@ namespace Fuse.UsbMux
         }
     }
 
-    class FailedToListen : Exception
+    public class FailedToListen : Exception
     {
         public FailedToListen(string message)
             : base("Failed to listen to usbmux: " + message)
@@ -29,15 +29,15 @@ namespace Fuse.UsbMux
         }
     }
 
-    class FailedToConnectToUSBMux : Exception
+    public class FailedToConnectToUSBMux : Exception
     {
-        public FailedToConnectToUSBMux()
-            : base("Failed to connect to usbmux.")
+        public FailedToConnectToUSBMux(Exception innerException)
+            : base("Failed to connect to usbmux.", innerException)
         {
         }
     }
 
-    class FailedToParsePlist : Exception
+    public class FailedToParsePlist : Exception
     {
         public FailedToParsePlist()
             : base("Failed to parse plist.")
@@ -45,17 +45,17 @@ namespace Fuse.UsbMux
         }
     }
 
-    class FailedToSendMessage : Exception
+    public class FailedToSendMessage : Exception
     {
-        public FailedToSendMessage() : base("Failed to send message to usbmux.")
+        public FailedToSendMessage(Exception innerException) : base("Failed to send message to usbmux.", innerException)
         {
         }
     }
 
-    class FailedToParseResponse : Exception
+    public class FailedToParseResponse : Exception
     {
-        public FailedToParseResponse()
-            : base("Failed to parse response from usbmux.")
+        public FailedToParseResponse(Exception innerException)
+            : base("Failed to parse response from usbmux.", innerException)
         {
         }
     }
@@ -77,11 +77,8 @@ namespace Fuse.UsbMux
 
         public override string ToString()
         {
-            return "{ DeviceID: " + DeviceID
-                + ", ProductID: " + ProductID
-                + ", SerialNumber: " + BitConverter.ToString(SerialNumber)
-                                                   + ", Location: " + Location
-                                                   + " }";
+            return string.Format("{{ DeviceID: {0}, ProductID: {1}, SerialNumber: {2}, Location: {3} }}",
+                DeviceID, ProductID, BitConverter.ToString(SerialNumber), Location);
         }
     }
 
@@ -184,9 +181,9 @@ namespace Fuse.UsbMux
             {
                 return PlistSerializer.PayloadToNSDictionary(MessageData.Deserialize(reader).Payload);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                throw new FailedToParseResponse();
+                throw new FailedToParseResponse(e);
             }
         }
 
@@ -197,9 +194,9 @@ namespace Fuse.UsbMux
             {
                 MessageData.SerializePlist(writer, payload);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                throw new FailedToSendMessage();
+                throw new FailedToSendMessage(e);
             }
         }
     }
@@ -322,14 +319,14 @@ namespace Fuse.UsbMux
         {
             try
             {
-                EndPoint endPoint = new UnixEndPoint("/var/run/usbmuxd");
+                var endPoint = new UnixEndPoint("/var/run/usbmuxd");
                 var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
                 socket.Connect(endPoint);
                 return new NetworkStream(socket);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                throw new FailedToConnectToUSBMux();
+                throw new FailedToConnectToUSBMux(e);
             }
         }
     }
